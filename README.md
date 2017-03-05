@@ -6,9 +6,10 @@ The functions:
 
 2. The function "exploration_means" allows you to get and display means and standard errors. Output is both a plot and a summary table. Splitting by multiple groups is possible. There is also a possibility of downloading a summary table into excel and Word. If you are using a Mac, you might require Java and RQuartz to be able to download the Word-file.
 
-3. The function “exploration_scatter” creates scatter plots between two variables. Splitting by multiple groups possible. Possibility to show fitted lines (also split per group) and confidence intervals around these lines.
+3. The function “exploration_scatter” creates scatter plots between two variables. Splitting by multiple groups possible. Possibility to show fitted lines (also split per group) and confidence intervals around these lines. 
 
-4. The function “exploration_networks” allows you to examine networks and several covariates. Several estimation techniques are possible.
+4. The function “exploration_networks” allows you to examine networks and several covariates. Several estimation techniques are possible. 
+
 
 
 
