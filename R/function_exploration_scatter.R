@@ -1,4 +1,4 @@
-exploration_scatter <- function(dataInput, heightplot, heightshiny) { 
+exploration_scatter <- function(dataInput) { 
   require(shiny)
   require(plotly)
   
@@ -34,7 +34,8 @@ exploration_scatter <- function(dataInput, heightplot, heightshiny) {
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
-                  tabPanel("Plot", plotlyOutput('trendPlot', height=heightplot)),
+                  tabPanel("Plot", plotlyOutput('trendPlot')),
+                  tabPanel("R-code", verbatimTextOutput('Rcode')),
                   tabPanel("Data", dataTableOutput('table'))
       )
     )
@@ -42,32 +43,55 @@ exploration_scatter <- function(dataInput, heightplot, heightshiny) {
   
   server <- function(input, output) {
     
-    output$table <- renderDataTable(dataInput)
     
-    output$trendPlot <- renderPlotly({
-      
-      # build graph with ggplot syntax
-      p <- ggplot(dataInput, aes_string(x = input$x, y = input$y)) + theme_bw()
+    stringCode <- reactive({
       
       if(input$color != ".") {
-        p <- ggplot(dataInput, aes_string(x = input$x, y = input$y, colour = input$color)) + theme_bw() + geom_point() 
+        p <- "ggplot(dataInput, aes(x = input$x, y = input$y, colour = input$color)) + geom_point()" 
       } else if(input$color == ".") {
-        p <- ggplot(dataInput, aes_string(x = input$x, y = input$y)) + theme_bw() + geom_point() 
+        p <- "ggplot(dataInput, aes(x = input$x, y = input$y)) + geom_point()"
       }
       
-      if(input$line) { # If line = true add regression line
-        p <- p + geom_smooth(se=input$se, method=input$smooth)
+      if(input$line) { # If line is selected add regression line
+        p <- paste(p, "+", "geom_smooth(se=input$se, method=input$smooth)")
       }
       
       # if at least one facet column/row is specified, add it
       facets <- paste(input$facet_row, '~', input$facet_col)
-      if (facets != '. ~ .') p <- p + facet_grid(facets)
+      if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
+      
+      p <- paste(p, "+ theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1))")
+      
+      # Replace name of variables by values
+      p <- str_replace_all(p, "input\\$x", input$x)
+      p <- str_replace_all(p, "input\\$y", input$y)
+      p <- str_replace_all(p, "input\\$color", input$color)
+      p <- str_replace_all(p, "input\\$se", input$se)
+      p <- str_replace_all(p, "input\\$smooth", input$smooth)
+      
+      p
+      
+    })
+    
+    output$trendPlot <- renderPlotly({
+      
+      # evaluate the string RCode as code
+      p <- eval(parse(text=stringCode()))
       
       ggplotly(p)
       
     })
+    
+    # Give the R-code as output
+    output$Rcode <- renderText({ 
+      q <- stringCode()
+      q <- str_replace_all(q, "\\+ ", "+\n  ")
+      paste("# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+    })
+    
+    output$table <- renderDataTable(dataInput)
   }
-  shinyApp(ui, server, options = list(height = heightshiny))
+  shinyApp(ui, server)
 }
 
-
+exploration_scatter(mpg)

@@ -1,6 +1,7 @@
-exploration_distributions <- function(dataInput, heightplot, heightshiny) { 
+exploration_distributions <- function(dataInput) { 
   require(shiny)
   require(plotly)
+  require(stringr)
   
   nms <- names(dataInput)
   
@@ -45,7 +46,8 @@ exploration_distributions <- function(dataInput, heightplot, heightshiny) {
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
-                  tabPanel("Plot", plotlyOutput('trendPlot', height=heightplot)),
+                  tabPanel("Plot", plotlyOutput('trendPlot')),
+                  tabPanel("R-code", verbatimTextOutput('Rcode')),
                   tabPanel("Data", dataTableOutput('table'))
       )
     )
@@ -54,52 +56,72 @@ exploration_distributions <- function(dataInput, heightplot, heightshiny) {
   server <- function(input, output) {
     
     output$table <- renderDataTable(dataInput)
+
+    stringCode <- reactive({
+
+        if(input$Type=="Histogram") {
+          if(input$Group != ".") {
+            p <- "ggplot(dataInput, aes(x = input$Variable)) + geom_histogram(aes(fill = input$Group), position = 'identity', alpha = input$alpha, binwidth = input$binwidth)" 
+          } else if(input$Group == ".") {
+            p <- "ggplot(dataInput, aes(x = input$Variable)) + geom_histogram(position = 'identity', alpha = input$alpha, binwidth = input$binwidth)" 
+          }
+        } else if(input$Type=="Density") {
+          if(input$Group != ".") {
+            p <- "ggplot(dataInput, aes(x = input$Variable)) + geom_density(aes(fill = input$Group), position = 'identity', alpha = input$alpha, adjust = input$bw_adjust)" 
+          } else if(input$Group == ".") {
+            p <- "ggplot(dataInput, aes(x = input$Variable)) + geom_density(position = 'identity', alpha = input$alpha, adjust = input$bw_adjust)" 
+          }
+        } else if(input$Type=="Boxplot") {
+          if(input$Group != ".") {
+            p <- "ggplot(dataInput, aes(y = input$Variable, x = input$Group)) + geom_boxplot()" 
+          } else if(input$Group == ".") {
+            p <- "ggplot(dataInput, aes(y = input$Variable, x = 1)) + geom_boxplot()"
+          }
+          if(input$jitter) p <- paste(p, "+", "geom_jitter(size = 1, alpha = 0.2, width = 0.25, colour = 'blue')")
+        } else if(input$Type=="Violin") {
+          if(input$Group != ".") {
+            p <- "ggplot(dataInput, aes(y = input$Variable, x = input$Group)) + geom_violin(adjust = input$bw_adjust)" 
+          } else if(input$Group == ".") {
+            p <- "ggplot(dataInput, aes(y = input$Variable, x = 1)) + geom_violin(adjust = input$bw_adjust)"
+          }
+          if(input$jitter) p <- paste(p, "+", "geom_jitter(size = 1, alpha = 0.2, width = 0.25, colour = 'blue')")
+        }
+        
+        # if at least one facet column/row is specified, add it
+        facets <- paste(input$facet_row, '~', input$facet_col)
+        if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
+        
+        p <- paste(p, "+ theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1))")
+        
+        # Replace name of variables by values
+        p <- str_replace_all(p, "input\\$Variable", input$Variable)
+        p <- str_replace_all(p, "input\\$Group", input$Group)
+        p <- str_replace_all(p, "input\\$bw_adjust", input$bw_adjust)
+        p <- str_replace_all(p, "input\\$alpha", input$alpha)
+        
+        p
+    })
     
     output$trendPlot <- renderPlotly({
       
-      # build graph with ggplot syntax
-      p <- ggplot(dataInput, aes_string(x = input$Variable))
-      
-      if(input$Type=="Histogram") {
-        if(input$Group != ".") {
-          p <- p + geom_histogram(aes_string(fill=input$Group), position="identity", alpha=input$alpha, binwidth=input$binwidth) 
-        } else if(input$Group == ".") {
-          p <- p + geom_histogram(position="identity", alpha=input$alpha, binwidth=input$binwidth) 
-        }
-      } else if(input$Type=="Density") {
-        if(input$Group != ".") {
-          p <- p + geom_density(aes_string(fill=input$Group), position="identity", alpha=input$alpha, adjust=input$bw_adjust) 
-        } else if(input$Group == ".") {
-          p <- p + geom_density(position="identity", alpha=input$alpha, adjust=input$bw_adjust) 
-        }
-      }
-      else if(input$Type=="Boxplot") {
-        if(input$Group != ".") {
-          p <- ggplot(dataInput, aes_string(y = input$Variable, x=input$Group)) + geom_boxplot() 
-        } else if(input$Group == ".") {
-          p <- ggplot(dataInput, aes_string(y = input$Variable, x=1)) + geom_boxplot()
-        }
-        if(input$jitter) p <- p + geom_jitter(size=1, alpha=0.2, width=0.25, colour="blue")
-      } else if(input$Type=="Violin") {
-        if(input$Group != ".") {
-          p <- ggplot(dataInput, aes_string(y = input$Variable, x=input$Group)) + geom_violin(adjust=input$bw_adjust) 
-        } else if(input$Group == ".") {
-          p <- ggplot(dataInput, aes_string(y = input$Variable, x=1)) + geom_violin(adjust=input$bw_adjust)
-        }
-        if(input$jitter) p <- p + geom_jitter(size=1, alpha=0.2, width=0.25, colour="blue")
-      }
-      #if(input$jitter) p <- p + geom_jitter(size=1, alpha=0.2, width=0.25, colour="blue")
-      # if at least one facet column/row is specified, add it
-      facets <- paste(input$facet_row, '~', input$facet_col)
-      if (facets != '. ~ .') p <- p + facet_grid(facets)
-      
-      p <- p + theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1))
-      
+      # evaluate the string RCode as code
+      p <- eval(parse(text=stringCode()))
+          
       ggplotly(p)
       
     })
+    
+    # Give the R-code as output
+    output$Rcode <- renderText({ 
+      q <- stringCode()
+      q <- str_replace_all(q, "\\+", "+\n  ")
+      paste("# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+    })
+    
   }
-  shinyApp(ui, server, options = list(height = heightshiny))
+  #shinyApp(ui, server, options = list(height = heightshiny))
+  shinyApp(ui, server)
 }
 
 
+exploration_distributions(mpg)

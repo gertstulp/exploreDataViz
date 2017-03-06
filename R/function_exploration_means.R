@@ -1,6 +1,7 @@
-exploration_means <- function(dataInput, heightplot, heightshiny) { 
+exploration_means <- function(dataInput) { 
   require(shiny)
   require(plotly)
+  require(stringr) 
   require(dplyr)
   
   nms <- names(dataInput)
@@ -46,16 +47,19 @@ exploration_means <- function(dataInput, heightplot, heightshiny) {
     
     mainPanel(
       tabsetPanel(type = "tabs",
-                  tabPanel("Plot", plotlyOutput('trendPlot', height=heightplot)),
+                  #tabPanel("Plot", plotlyOutput('trendPlot', height=heightplot)),
+                  tabPanel("Plot", plotlyOutput('trendPlot')),
+                  tabPanel("R-code", verbatimTextOutput('Rcode')),
                   tabPanel("Summary", dataTableOutput('SummaryTable')),
+                  tabPanel("R-code table", verbatimTextOutput('RcodeTable')),
                   tabPanel("Data", dataTableOutput('table'))
       )
     )
   )
   
   server <- function(input, output) {
-    
-    dataset <- reactive({
+  
+    stringCodeTable <- reactive({
       
       ### This creates statistics by group
       df_GroupVars <- data.frame(
@@ -66,74 +70,105 @@ exploration_means <- function(dataInput, heightplot, heightshiny) {
       countGroupVars <- sum(df_GroupVars[1,] != ".") # Count how many grouping variables there are
       indexGroupVars <- which(df_GroupVars[1,] != ".") # Index of grouping variables
       
+      functionInString <- paste("dplyr::summarise(",
+                                "Mean = mean(input$Variable, na.rm = TRUE),",
+                                "SD = sd(input$Variable, na.rm = TRUE),",
+                                "n = n(),",
+                                "SE = SD/sqrt(n),",
+                                "Min = min(input$Variable, na.rm = TRUE),",
+                                "Max = max(input$Variable, na.rm = TRUE),",
+                                "Missing = sum(is.na(input$Variable)))", sep="")
+      
       # This (not so pretty) if-else structure is needed to make statistics with appropriate groupings
       if(countGroupVars==0) {
-        df <- eval(substitute(dataInput %>% 
-                                dplyr::summarise(
-                                  Mean = mean(Var, na.rm = TRUE),
-                                  SD = sd(Var, na.rm = TRUE),
-                                  n = n(),
-                                  SE = SD/sqrt(n),
-                                  Min = min(Var, na.rm = TRUE),
-                                  Max = max(Var, na.rm = TRUE),
-                                  Missing = sum(is.na(Var))
-                                ), list(Var = as.name(as.character(input$Variable)))
-        )
-        )
+        tableCode <- paste("dataInput %>%", functionInString)
       } else if(countGroupVars==1) {
-        df <- eval(substitute(dataInput %>% 
-                                group_by(Group1) %>%
-                                dplyr::summarise(
-                                  Mean = mean(Var, na.rm = TRUE),
-                                  SD = sd(Var, na.rm = TRUE),
-                                  n = n(),
-                                  SE = SD/sqrt(n),
-                                  Min = min(Var, na.rm = TRUE),
-                                  Max = max(Var, na.rm = TRUE),
-                                  Missing = sum(is.na(Var))
-                                ), list(Var = as.name(as.character(input$Variable)),
-                                        Group1 = as.name(as.character(df_GroupVars[1,indexGroupVars[1]]))
-                                )
-        )
-        )
+        tableCode <- paste("dataInput %>% ", "group_by(",
+                    df_GroupVars[1,indexGroupVars[1]], ")", " %>% ", functionInString, sep="")
       } else if(countGroupVars==2) {
-        df <- eval(substitute(dataInput %>% 
-                                group_by(Group1, Group2) %>%
-                                dplyr::summarise(
-                                  Mean = mean(Var, na.rm = TRUE),
-                                  SD = sd(Var, na.rm = TRUE),
-                                  n = n(),
-                                  SE = SD/sqrt(n),
-                                  Min = min(Var, na.rm = TRUE),
-                                  Max = max(Var, na.rm = TRUE),
-                                  Missing = sum(is.na(Var))
-                                ), list(Var = as.name(as.character(input$Variable)),
-                                        Group1 = as.name(as.character(df_GroupVars[1,indexGroupVars[1]])),
-                                        Group2 = as.name(as.character(df_GroupVars[1,indexGroupVars[2]]))
-                                )
-        )
-        )
+        tableCode <- paste("dataInput %>% ", "group_by(",
+                    df_GroupVars[1,indexGroupVars[1]], ", ",
+                    df_GroupVars[1,indexGroupVars[2]], ")", " %>% ", functionInString, sep="")
       } else if(countGroupVars==3) {
-        df <- eval(substitute(dataInput %>% 
-                                group_by(Group1, Group2, Group3) %>%
-                                dplyr::summarise(
-                                  Mean = mean(Var, na.rm = TRUE),
-                                  SD = sd(Var, na.rm = TRUE),
-                                  n = n(),
-                                  SE = SD/sqrt(n),
-                                  Min = min(Var, na.rm = TRUE),
-                                  Max = max(Var, na.rm = TRUE),
-                                  Missing = sum(is.na(Var))
-                                ), list(Var = as.name(as.character(input$Variable)),
-                                        Group1 = as.name(as.character(df_GroupVars[1,indexGroupVars[1]])),
-                                        Group2 = as.name(as.character(df_GroupVars[1,indexGroupVars[2]])),
-                                        Group3 = as.name(as.character(df_GroupVars[1,indexGroupVars[3]]))
-                                )
-        )
-        )
+        tableCode <- paste("dataInput %>% ", "group_by(",
+                           df_GroupVars[1,indexGroupVars[1]], ", ",
+                           df_GroupVars[1,indexGroupVars[2]], ", ",
+                           df_GroupVars[1,indexGroupVars[3]], ")", " %>% ", functionInString, sep="")
       }
-      data.frame(lapply(df, function(y) if(is.numeric(y)) round(y, 2) else y)) 
+      # Replace name of variables by values
+      tableCode <- str_replace_all(tableCode, "input\\$Variable", input$Variable)
+      tableCode
     })
+    
+    dataset <- reactive({
+      
+      df <- eval(parse(text=stringCodeTable()))
+      
+      data.frame(lapply(df, function(y) if(is.numeric(y)) round(y, 2) else y)) 
+      
+    })
+    
+    stringCode <- reactive({
+      
+      # build graph with ggplot syntax
+      if(input$Group != ".") {
+        p <- "ggplot(dataset(), aes(x=input$Group, y=Mean)) + geom_point(size=2, colour='#56B4E9') + geom_errorbar(aes(ymin = Mean-SE, ymax = Mean+SE),size=2, colour='#56B4E9', width=0)"
+        if(input$jitter) p <- paste(p, "+", "geom_jitter(data=dataInput, aes(y = input$Variable), size=1, alpha=0.2, width=0.25, colour='#CC79A7')")
+      } else if(input$Group == ".") {
+        p <- "ggplot(dataset(), aes(x='', y = Mean)) + geom_point(size=2, colour='#56B4E9') + geom_errorbar(aes(ymin = Mean-SE, ymax = Mean+SE),size=2, colour='#56B4E9', width=0)"
+        if(input$jitter) p <- paste(p, "+", "geom_jitter(data=dataInput, aes(y = input$Variable), size=1, alpha=0.2, width=0.25, colour='#CC79A7')")
+      }
+      
+      # This sorts x-axis according to means on y-axis
+      if(input$order) {
+        p <- paste(p, "+", "scale_x_discrete(limits=dataset()[['input$Group']][order(dataset()[['Mean']])])") # Dit sorteert de x-as op grootte
+      }
+      
+      # if at least one facet column/row is specified, add it
+      facets <- paste(input$facet_row, '~', input$facet_col)
+      if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
+      
+      lab <- paste(input$Variable, "(mean ± standard error)")
+      p <- paste(p, " + ", "labs(y='", paste(lab), "')", sep="") 
+      p <- paste(p, "+", "theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1))") 
+      
+      # Replace name of variables by values
+      p <- str_replace_all(p, "input\\$Variable", input$Variable)
+      p <- str_replace_all(p, "input\\$Group", input$Group)
+
+      p
+    })
+
+    output$trendPlot <- renderPlotly({
+      
+      # evaluate the string RCode as code
+      p <- eval(parse(text=stringCode()))
+      
+      ggplotly(p)
+      
+    })
+    
+    # Give the R-code as output
+    output$Rcode <- renderText({ 
+      q <- stringCode()
+      q <- str_replace_all(q, "\\+ ", "+\n  ")
+      paste("# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+    })
+    
+    # Give the R-code for the table as output
+    output$RcodeTable <- renderText({ 
+      q <- stringCodeTable()
+      q <- str_replace_all(q, "\\+ ", "+\n  ")
+      q <- str_replace_all(q, "%>% ", "%>%\n  ")
+      q <- str_replace_all(q, "\\),", "\\),\n\t")
+      paste("# You can use the below code to generate the table\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+    })
+    
+    output$SummaryTable <- renderDataTable(
+      dataset() 
+    )
+    
+    output$table <- renderDataTable(dataInput)
     
     ############ Download handler for the download button ####################
     # downloadHandler() takes two arguments, both functions.
@@ -165,40 +200,8 @@ exploration_means <- function(dataInput, heightplot, heightshiny) {
       }
     )
     
-    output$table <- renderDataTable(dataInput)
-
-    output$SummaryTable <- renderDataTable(
-        dataset() 
-    )
-    
-    output$trendPlot <- renderPlotly({
-      
-      # build graph with ggplot syntax
-      if(input$Group != ".") {
-        p <- eval(substitute(ggplot(dataset(), aes(x=Var, y=Mean)) + geom_point(size=2, colour="#56B4E9") + 
-                                geom_errorbar(aes(ymin = Mean-SE, ymax = Mean+SE),size=2, colour="#56B4E9", width=0), list(Var = as.name(as.character(input$Group))) 
-                             )
-                  )
-        if(input$jitter) p <- p + geom_jitter(data=dataInput, aes_string(y = input$Variable), size=1, alpha=0.2, width=0.25, colour="#CC79A7")
-      } else if(input$Group == ".") {
-        p <- ggplot(dataset(), aes(x="", y = Mean)) + geom_point(size=2, colour="#56B4E9") + 
-          geom_errorbar(aes(ymin = Mean-SE, ymax = Mean+SE),size=2, colour="#56B4E9", width=0)
-        if(input$jitter) p <- p + geom_jitter(data=dataInput, aes_string(y = input$Variable), size=1, alpha=0.2, width=0.25, colour="#CC79A7")
-      }
-      # This sorts x-axis according to means on y-axis
-      if(input$order) {
-        p <- p + scale_x_discrete(limits=dataset()[[input$Group]][order(dataset()[["Mean"]])]) # Dit sorteert de x-as op grootte
-      }
-      
-      # if at least one facet column/row is specified, add it
-      facets <- paste(input$facet_row, '~', input$facet_col)
-      if (facets != '. ~ .') p <- p + facet_grid(facets)
-      
-      p <- p + labs(y=paste(input$Variable, "(mean ± standard error)", sep=" ")) + theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1)) 
-
-      ggplotly(p)
-      
-    })
   }
-  shinyApp(ui, server, options = list(height = heightshiny))
+  #shinyApp(ui, server, options = list(height = heightshiny))
+  shinyApp(ui, server)
 }
+exploration_means(mpg)
