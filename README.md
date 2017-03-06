@@ -3,15 +3,20 @@ Data exploration in R can be painful(ly difficult), even for those with some exp
 
 The functions:
 
-1. The function "exploration_distributions" visualizes the distribution of a single variable through either histograms, density plots, violin plots, and boxplots. Variables can be split by factors.
+1. The function *exploration_distributions* visualizes the distribution of a single variable through either histograms, density plots, violin plots, and boxplots. Variables can be split by factors.
 
-2. The function "exploration_means" allows you to get and display means and standard errors. Output is both a plot and a summary table. Splitting by multiple groups is possible. There is also a possibility of downloading a summary table into excel and Word. If you are using a Mac, you might require Java and RQuartz to be able to download the Word-file.
+2. The function *exploration_means* allows you to get and display means and standard errors. Output is both a plot and a summary table. Splitting by multiple groups is possible. There is also a possibility of downloading a summary table into excel and Word. If you are using a Mac, you might require Java and RQuartz to be able to download the Word-file.
 
-3. The function “exploration_scatter” creates scatter plots between two variables. Splitting by multiple groups possible. Possibility to show fitted lines (also split per group) and confidence intervals around these lines. 
+3. The function *exploration_scatter* creates scatter plots between two variables. Splitting by multiple groups possible. Possibility to show fitted lines (also split per group) and confidence intervals around these lines. 
 
-4. The function “exploration_networks” allows you to examine networks and several covariates. Several estimation techniques are possible. 
+4. The function *exploration_networks* allows you to examine networks and several covariates. Several estimation techniques are possible. 
 
-
-
+# Use
+To use the functions, simply call the function and give a dataset as an argument, e.g.:
+```{r, eval=FALSE}
+require("ggplot2")
+data(mpg, package = "ggplot2") # Example dataset on cars from ggplot. 
+exploration_distributions(mpg) 
+```
 
 
