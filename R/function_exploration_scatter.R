@@ -93,5 +93,3 @@ exploration_scatter <- function(dataInput) {
   }
   shinyApp(ui, server)
 }
-
-exploration_scatter(mpg)

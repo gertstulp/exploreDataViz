@@ -123,5 +123,3 @@ exploration_distributions <- function(dataInput) {
   shinyApp(ui, server)
 }
 
-
-exploration_distributions(mpg)

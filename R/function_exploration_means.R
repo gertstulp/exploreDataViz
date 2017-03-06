@@ -204,4 +204,3 @@ exploration_means <- function(dataInput) {
   #shinyApp(ui, server, options = list(height = heightshiny))
   shinyApp(ui, server)
 }
-exploration_means(mpg)
