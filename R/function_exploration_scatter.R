@@ -1,4 +1,5 @@
 exploration_scatter <- function(dataInput) { 
+  library(stringr) 
   library(shiny)
   library(plotly)
   
