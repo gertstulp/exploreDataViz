@@ -1,7 +1,7 @@
 exploration_distributions <- function(dataInput) { 
-  require(shiny)
-  require(plotly)
-  require(stringr)
+  library(shiny)
+  library(plotly)
+  library(stringr)
   
   nms <- names(dataInput)
   
@@ -113,13 +113,38 @@ exploration_distributions <- function(dataInput) {
     
     # Give the R-code as output
     output$Rcode <- renderText({ 
-      q <- stringCode()
-      q <- str_replace_all(q, "\\+", "+\n  ")
-      paste("# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+      
+      begin_text <- "# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe"
+      package_text <- paste("# You need the following package(s): \n", "library(ggplot2)", sep="")
+      graph_text <- "# The code below will generate the graph:"
+      gg_text <- stringCode()
+      gg_text <- str_replace_all(gg_text, "\\+ ", "+\n  ")
+      gg_text <- paste("graph <- ", gg_text, "\ngraph", sep="")
+      package_plotly_text <- paste("# If you want the plot to be interactive, you need the following package(s): \n", "library(plotly)", sep="")
+      plotly_text <- paste("ggplotly(graph)")
+      save_text <- "# If you would like to save your graph, you can use:"
+      save_code <- "ggsave('my_graph.pdf', graph, width = 10, height = 10, unit = 'cm')"
+      
+      paste(begin_text,
+            "\n\n", 
+            package_text,
+            "\n\n", 
+            graph_text,
+            "\n",
+            gg_text,
+            "\n\n", 
+            package_plotly_text,
+            "\n\n",
+            plotly_text, 
+            "\n\n",
+            save_text,
+            "\n",
+            save_code,
+            sep="")
+
     })
     
   }
-  #shinyApp(ui, server, options = list(height = heightshiny))
   shinyApp(ui, server)
 }
 

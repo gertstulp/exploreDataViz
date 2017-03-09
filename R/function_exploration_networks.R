@@ -1,11 +1,9 @@
-exploration_networks <- function(dataInput, seed, heightshiny) { 
-  require(shiny)
-  require(plotly)
-  require(ggplot2)
-  require(ggnetwork)
-  require(network)
-  require(sna)
-  require(intergraph)
+exploration_networks <- function(dataInput) { 
+  library(shiny)
+  library(ggplot2)
+  library(stringr)
+  library(ggnetwork)
+  library(intergraph)
 
   ui <- fluidPage(
   
@@ -27,11 +25,13 @@ exploration_networks <- function(dataInput, seed, heightshiny) {
                        uiOutput("networkNamesNodes")),
       checkboxInput(inputId = "directed",
                     label = strong("Directed arrows"),
-                    value = FALSE)
+                    value = FALSE),
+      numericInput("seed", "Set seed:", value = 1)
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
                   tabPanel("Plot", plotOutput("trendPlot")),
+                  tabPanel("R-code", verbatimTextOutput('Rcode')),
                   tabPanel("Data transformed", dataTableOutput('table_transformed')),
                   tabPanel("Data input", verbatimTextOutput('table'))
       )
@@ -41,7 +41,7 @@ exploration_networks <- function(dataInput, seed, heightshiny) {
   server <- function(input, output) {
 
     output$table <- renderPrint({ 
-      summary(dataInput) #      c(data()) 
+      summary(dataInput) 
     })
 
     gen_network <- reactive({
@@ -49,7 +49,7 @@ exploration_networks <- function(dataInput, seed, heightshiny) {
       
       gg_gen_network <- ggnetwork(dataInput, layout = input$layout, cell.jitter = 0.75)
       nms <- names(gg_gen_network)
-      nmsFactors <- names(Filter(function(x) is.factor(x) || is.logical(x) || is.character(x), gg_gen_network)) # Make list of variables that are not factors
+      nmsFactors <- names(Filter(function(x) is.factor(x) || is.logical(x) || is.character(x), gg_gen_network)) # Make list of variables that are factors
       nmsNonFactors <- names(Filter(function(x) is.integer(x) || is.numeric(x) || is.double(x), gg_gen_network)) # Make list of variables that are not factors
       
       list(Network = gg_gen_network, 
@@ -94,71 +94,119 @@ exploration_networks <- function(dataInput, seed, heightshiny) {
       selectInput("ChooseNames", "Choose the names variable", choices = c("None" = '.', gen_network()[["Names"]]))
     })
     
-    
-    
-    output$trendPlot <- renderPlot({
+    stringCode <- reactive({
       
       if(input$Facet == ".") {
-        nw_for_gg <- gen_network()[["Network"]]
-        p <- ggplot(nw_for_gg, aes(x = x, y = y, xend = xend, yend = yend)) + theme_blank()
+        p <- "ggplot(gen_network()[['Network']], aes(x = x, y = y, xend = xend, yend = yend))"
       } else if(input$Facet != ".") {
-        nw_for_gg <- gen_network_groups()
-        p <- ggplot(nw_for_gg, aes(x = x, y = y, xend = xend, yend = yend)) + theme_blank() + facet_wrap(input$Facet)
+        p <- paste("ggplot(gen_network_groups(), aes(x = x, y = y, xend = xend, yend = yend)) + facet_wrap(input$Facet)")
       } 
       
       if(input$Ties == '.') {
         if(!input$directed) {
-          p <- p + geom_edges(color = "grey50")
+          p <- paste(p, "+", "geom_edges(color = 'grey50')")
         } else if(input$directed) {
-          p <- p + geom_edges(arrow = arrow(length = unit(6, "pt"), type = "closed"), color = "grey50") 
+          p <- paste(p, "+", "geom_edges(arrow = arrow(length = unit(6, 'pt'), type = 'closed'), color = 'grey50')")
         }
       } else if(input$Ties != '.') { 
         if(!input$directed) {
-          p <- p + geom_edges(aes_string(linetype = input$Ties), color = "grey50")       
+          p <- paste(p, "+", "geom_edges(aes(linetype = input$Ties), color = 'grey50')")
         } else if(input$directed) {
-          p <- p + geom_edges(aes_string(linetype = input$Ties), color = "grey50", arrow = arrow(length = unit(6, "pt"), type = "closed")) 
+          p <- paste(p, "+", "geom_edges(aes(linetype = input$Ties), color = 'grey50', arrow = arrow(length = unit(6, 'pt'), type = 'closed'))") 
         }
       }
-    
-      #geom_edges(arrow = arrow(length = unit(6, "pt"), type = "closed")) +
-        
+      
       if (input$Shape != '.') { 
         if(input$Colour != '.') {
           if(input$Size != '.') {
-            p <- p + geom_nodes(aes_string(shape=input$Shape, colour=input$Colour, size=input$Size)) + scale_size(range=c(1,10))
+            p <- paste(p, "+", "geom_nodes(aes(shape=input$Shape, colour=input$Colour, size=input$Size)) + scale_size(range=c(1,10))")
           } else if(input$Size == '.') { 
-            p <- p + geom_nodes(aes_string(shape=input$Shape, colour=input$Colour), size=5)
+            p <- paste(p, "+", "geom_nodes(aes(shape=input$Shape, colour=input$Colour), size=5)")
           }
         } else if(input$Colour == '.') {
           if(input$Size != '.') {
-            p <- p + geom_nodes(aes_string(shape=input$Shape, size=input$Size)) + scale_size(range=c(1,10))
+            p <- paste(p, "+", "geom_nodes(aes(shape=input$Shape, size=input$Size)) + scale_size(range=c(1,10))")
           } else if(input$Size == '.') { 
-            p <- p + geom_nodes(aes_string(shape=input$Shape), size=5)
+            p <- paste(p, "+", "geom_nodes(aes(shape=input$Shape), size=5)")
           }
         }
       } else if(input$Shape == '.') { 
         if(input$Colour != '.') {
           if(input$Size != '.') {
-            p <- p + geom_nodes(aes_string(colour=input$Colour, size=input$Size)) + scale_size(range=c(1,10))
+            p <- paste(p, "+", "geom_nodes(aes(colour=input$Colour, size=input$Size)) + scale_size(range=c(1,10))")
           } else if(input$Size == '.'){ 
-            p <- p + geom_nodes(aes_string(colour=input$Colour), size=5)
+            p <- paste(p, "+", "geom_nodes(aes(colour=input$Colour), size=5)")
           }
         } else if(input$Colour == '.') {
           if(input$Size != '.') {
-            p <- p + geom_nodes(aes_string(size=input$Size)) + scale_size(range=c(1,10))
+            p <- paste(p, "+", "geom_nodes(aes(size=input$Size)) + scale_size(range=c(1,10))")
           } else if(input$Size == '.'){ 
-            p <- p + geom_nodes(size=5)
+            p <- paste(p, "+", "geom_nodes(size=5)")
           }
         }
       }
       
-      if(input$namesNodes && input$ChooseNames != ".") p <- p + geom_nodetext(aes_string(label = input$ChooseNames ), size=10, colour="blue") 
+      if(input$namesNodes && input$ChooseNames != ".") p <- paste(p, "+", "geom_nodetext(aes(label = input$ChooseNames ), size = 10, colour = 'blue')") 
+      
+      p <- paste(p, "+", "theme_blank()") 
+      
+      # Replace name of variables by values
+      p <- str_replace_all(p, "input\\$Ties", input$Ties)
+      p <- str_replace_all(p, "input\\$Shape", input$Shape)
+      p <- str_replace_all(p, "input\\$Colour", input$Colour)
+      p <- str_replace_all(p, "input\\$Size", input$Size)
+      p <- str_replace_all(p, "input\\$ChooseNames", input$ChooseNames)
       
       p
+    })
+    
+    output$trendPlot <- renderPlot({
+      
+      # evaluate the string RCode as code
+      p <- eval(parse(text=stringCode()))
+      p
+      
+    })
+    
+    # Give the R-code as output
+    output$Rcode <- renderText({ 
+
+      begin_text <- "# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe"
+      package_text <- paste("# You need the following package(s): \n", "library(ggplot2)\nlibrary(ggnetwork)", sep="")
+      network_text <- "# The code below will generate the required network-dataframe for ggplot:"
+      network_code_text <-  paste(paste("set.seed(", input$seed, ")\n"), 
+                                  "nw_gg <- ggnetwork( dataInput, layout = '", input$layout, "', cell.jitter = 0.75", 
+                                  if(input$Facet == ".") ")" else paste(", by = ", input$Facet, ")"), sep="")
+      graph_text <- "# The code below will generate the graph:"
+      gg_text <- stringCode()
+      gg_text <- str_replace_all(gg_text, "\\+ ", "+\n  ")
+      gg_text <- str_replace_all(gg_text, "gen_network\\(\\)\\[\\['Network'\\]\\]", "nw_gg")
+      gg_text <- str_replace_all(gg_text, "gen_network_groups\\(\\)", "nw_gg")
+      gg_text <- str_replace_all(gg_text, "input\\$Facet", input$Facet) # This is needed because facet uses a formula rather than string CHECK
+      gg_text <- paste("graph <- ", gg_text, "\ngraph", sep="")
+      save_text <- "# If you would like to save your graph, you can use:"
+      save_code <- "ggsave('my_graph.pdf', graph, width = 10, height = 10, unit = 'cm')"
+      
+      paste(begin_text,
+            "\n\n", 
+            package_text,
+            "\n\n", 
+            network_text,
+            "\n",
+            network_code_text,
+            "\n\n",
+            graph_text,
+            "\n",
+            gg_text,
+            "\n\n", 
+            save_text,
+            "\n",
+            save_code,
+            sep="")
 
     })
+    
+    
   }
-  shinyApp(ui, server, options = list(height = heightshiny))
+  shinyApp(ui, server)
 }
-
-

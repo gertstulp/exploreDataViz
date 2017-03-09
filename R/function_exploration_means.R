@@ -1,8 +1,8 @@
 exploration_means <- function(dataInput) { 
-  require(shiny)
-  require(plotly)
-  require(stringr) 
-  require(dplyr)
+  library(shiny)
+  library(plotly)
+  library(stringr) 
+  library(dplyr)
   
   nms <- names(dataInput)
   
@@ -47,11 +47,9 @@ exploration_means <- function(dataInput) {
     
     mainPanel(
       tabsetPanel(type = "tabs",
-                  #tabPanel("Plot", plotlyOutput('trendPlot', height=heightplot)),
                   tabPanel("Plot", plotlyOutput('trendPlot')),
                   tabPanel("R-code", verbatimTextOutput('Rcode')),
                   tabPanel("Summary", dataTableOutput('SummaryTable')),
-                  tabPanel("R-code table", verbatimTextOutput('RcodeTable')),
                   tabPanel("Data", dataTableOutput('table'))
       )
     )
@@ -97,12 +95,18 @@ exploration_means <- function(dataInput) {
       }
       # Replace name of variables by values
       tableCode <- str_replace_all(tableCode, "input\\$Variable", input$Variable)
-      tableCode
+      
+      tableCodeOutput <- tableCode
+      tableCodeOutput <- str_replace_all(tableCodeOutput, "\\+ ", "+\n  ")
+      tableCodeOutput <- str_replace_all(tableCodeOutput, "%>% ", "%>%\n  ")
+      tableCodeOutput <- str_replace_all(tableCodeOutput, "\\),", "\\),\n\t")
+
+      list(tableCode=tableCode, tableCodeOutput=tableCodeOutput)
     })
     
     dataset <- reactive({
       
-      df <- eval(parse(text=stringCodeTable()))
+      df <- eval(parse(text=stringCodeTable()[['tableCode']]))
       
       data.frame(lapply(df, function(y) if(is.numeric(y)) round(y, 2) else y)) 
       
@@ -150,18 +154,41 @@ exploration_means <- function(dataInput) {
     
     # Give the R-code as output
     output$Rcode <- renderText({ 
-      q <- stringCode()
-      q <- str_replace_all(q, "\\+ ", "+\n  ")
-      paste("# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
-    })
-    
-    # Give the R-code for the table as output
-    output$RcodeTable <- renderText({ 
-      q <- stringCodeTable()
-      q <- str_replace_all(q, "\\+ ", "+\n  ")
-      q <- str_replace_all(q, "%>% ", "%>%\n  ")
-      q <- str_replace_all(q, "\\),", "\\),\n\t")
-      paste("# You can use the below code to generate the table\n# Don't forget to replace the 'dataInput' with the name of your dataframe\n", q)
+      
+      begin_text <- "# You can use the below code to generate the graph\n# Don't forget to replace the 'dataInput' with the name of your dataframe"
+      package_text <- paste("# You need the following package(s): \n", "library(ggplot2)\nlibrary(dplyr)", sep="")
+      table_text <- "# The code below will generate the required dataframe with means:"
+      table_code_text <-  paste("df_means <-", stringCodeTable()[['tableCodeOutput']]) 
+      graph_text <- "# The code below will generate the graph:"
+      gg_text <- stringCode()
+      gg_text <- str_replace_all(gg_text, "\\+ ", "+\n  ")
+      gg_text <- str_replace_all(gg_text, "dataset\\(\\)", "df_means")
+      gg_text <- paste("graph <- ", gg_text, "\ngraph", sep="")
+      package_plotly_text <- paste("# If you want the plot to be interactive, you need the following package(s): \n", "library(plotly)", sep="")
+      plotly_text <- paste("ggplotly(graph)")
+      save_text <- "# If you would like to save your graph, you can use:"
+      save_code <- "ggsave('my_graph.pdf', graph, width = 10, height = 10, unit = 'cm')"
+      
+      paste(begin_text,
+            "\n\n", 
+            package_text,
+            "\n\n", 
+            table_text,
+            "\n",
+            table_code_text,
+            "\n\n",
+            graph_text,
+            "\n",
+            gg_text,
+            "\n\n", 
+            package_plotly_text,
+            "\n\n",
+            plotly_text, 
+            "\n\n",
+            save_text,
+            "\n",
+            save_code,
+            sep="")
     })
     
     output$SummaryTable <- renderDataTable(
@@ -192,7 +219,7 @@ exploration_means <- function(dataInput) {
           write.table(dataset(), file, sep = sep,
                       row.names = FALSE)
         } else if(input$ext=="docx") {
-          require(ReporteRs)
+          library(ReporteRs)
           doc <- docx()
           doc <- addFlexTable( doc, vanilla.table(dataset()))
           writeDoc(doc, file=file)
@@ -201,6 +228,5 @@ exploration_means <- function(dataInput) {
     )
     
   }
-  #shinyApp(ui, server, options = list(height = heightshiny))
   shinyApp(ui, server)
 }
