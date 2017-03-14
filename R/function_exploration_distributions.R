@@ -96,12 +96,13 @@ exploration_distributions <- function(dataInput) {
         # Replace name of variables by values
         p <- str_replace_all(p, "input\\$Variable", input$Variable)
         p <- str_replace_all(p, "input\\$Group", input$Group)
-        p <- str_replace_all(p, "input\\$binwidth", input$binwidth)
-        p <- str_replace_all(p, "input\\$bw_adjust", input$bw_adjust)
-        p <- str_replace_all(p, "input\\$alpha", input$alpha)
-        #if(input$Type == 'Histogram') p <- str_replace_all(p, "input\\$bw_adjust", input$bw_adjust) # Otherwise input$bw_adjust not defined in some R-versions
-        #if(input$Type == 'Density' || input$Type == 'Histogram') p <- str_replace_all(p, "input\\$alpha", input$alpha)
-        
+        #p <- str_replace_all(p, "input\\$binwidth", input$binwidth)
+        #p <- str_replace_all(p, "input\\$bw_adjust", input$bw_adjust)
+        #p <- str_replace_all(p, "input\\$alpha", input$alpha)
+        if(input$Type == 'Histogram') p <- str_replace_all(p, "input\\$binwidth", input$binwidth) # Otherwise input$bw_adjust not defined in some R-versions
+        if(input$Type == 'Density' || input$Type == 'Histogram') p <- str_replace_all(p, "input\\$alpha", input$alpha)
+        if(input$Type == 'Density' || input$Type == 'Violin') p <- str_replace_all(p, "input\\$bw_adjust", input$bw_adjust) # Otherwise input$bw_adjust not defined in some R-versions
+      
         p
     })
     
