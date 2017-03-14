@@ -24,7 +24,7 @@ exploration_scatter <- function(dataInput) {
                     label = strong("Show regression line"),
                     value = FALSE),
       conditionalPanel(condition = "input.line == true",
-                       selectInput('smooth', 'Smoothening function', choices = c("lm", "loess", "gam"))
+                       selectInput('smooth', 'Smoothening function', choices = c('lm', 'loess', 'gam'))
       ),
       conditionalPanel(condition = "input.line == true",
                        checkboxInput(inputId = "se",
@@ -54,7 +54,7 @@ exploration_scatter <- function(dataInput) {
       }
       
       if(input$line) { # If line is selected add regression line
-        p <- paste(p, "+", "geom_smooth(se=input$se, method=input$smooth)")
+        p <- paste(p, " + ", "geom_smooth(se=input$se, method='", input$smooth, "')", sep="")
       }
       
       # if at least one facet column/row is specified, add it
@@ -67,8 +67,8 @@ exploration_scatter <- function(dataInput) {
       p <- str_replace_all(p, "input\\$x", input$x)
       p <- str_replace_all(p, "input\\$y", input$y)
       p <- str_replace_all(p, "input\\$color", input$color)
-      p <- str_replace_all(p, "input\\$se", input$se)
-      p <- str_replace_all(p, "input\\$smooth", input$smooth)
+      if(input$line) p <- str_replace_all(p, "input\\$se", input$se)
+      if(input$line) p <- str_replace_all(p, "input\\$smooth", input$smooth)
       
       p
       
