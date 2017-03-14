@@ -67,8 +67,8 @@ exploration_scatter <- function(dataInput) {
       p <- str_replace_all(p, "input\\$x", input$x)
       p <- str_replace_all(p, "input\\$y", input$y)
       p <- str_replace_all(p, "input\\$color", input$color)
-      if(input$line) p <- str_replace_all(p, "input\\$se", input$se)
-      if(input$line) p <- str_replace_all(p, "input\\$smooth", input$smooth)
+      p <- str_replace_all(p, "input\\$se", as.character(input$se))
+      p <- str_replace_all(p, "input\\$smooth", as.character(input$smooth))
       
       p
       
