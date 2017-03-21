@@ -29,6 +29,15 @@ exploration_means <- function(dataInput) {
                                      label = strong("Order variable x-axis"),
                                      value = FALSE)
       ),
+      checkboxInput(inputId = "label_axes",
+                    label = strong("Change labels axes"),
+                    value = FALSE),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("xaxis", "X-axis:", value="label x-axis")
+      ),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("yaxis", "Y-axis:", value="label y-axis")
+      ),
       checkboxInput(inputId = "downloadCheck",
                     label = strong("Download summary table"),
                     value = FALSE),
@@ -132,14 +141,21 @@ exploration_means <- function(dataInput) {
       facets <- paste(input$facet_row, '~', input$facet_col)
       if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
       
-      lab <- paste(input$Variable, "(mean ± standard error)")
-      p <- paste(p, " + ", "labs(y='", paste(lab), "')", sep="") 
+      # Specify axis labels
+      if(input$label_axes) {
+        p <- paste(p, "+", "labs(x='input$xaxis', y='input$yaxis')")
+      } else {
+        p <- paste(p, " + ", "labs(y='", input$Variable, " (mean \u00B1 standard error)", "')", sep="") 
+      }
+      
       p <- paste(p, "+", "theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1))") 
       
       # Replace name of variables by values
       p <- str_replace_all(p, "input\\$Variable", input$Variable)
       p <- str_replace_all(p, "input\\$Group", input$Group)
-
+      p <- str_replace_all(p, "input\\$xaxis", as.character(input$xaxis))
+      p <- str_replace_all(p, "input\\$yaxis", as.character(input$yaxis))
+      
       p
     })
 

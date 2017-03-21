@@ -30,8 +30,16 @@ exploration_scatter <- function(dataInput) {
                        checkboxInput(inputId = "se",
                                      label = strong("Show confidence interval"),
                                      value = FALSE)
+      ),
+      checkboxInput(inputId = "label_axes",
+                    label = strong("Change labels axes"),
+                    value = FALSE),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("axisx", "X-axis:", value="label x-axis")
+      ),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("axisy", "Y-axis:", value="label y-axis")
       )
-      
     ),
     mainPanel(
       tabsetPanel(type = "tabs",
@@ -61,6 +69,9 @@ exploration_scatter <- function(dataInput) {
       facets <- paste(input$facet_row, '~', input$facet_col)
       if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
       
+      # if labels specified
+      if(input$label_axes) p <- paste(p, "+", "labs(x='input$axisx', y='input$axisy')")
+      
       p <- paste(p, "+ theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1))")
       
       # Replace name of variables by values
@@ -69,6 +80,8 @@ exploration_scatter <- function(dataInput) {
       p <- str_replace_all(p, "input\\$color", input$color)
       p <- str_replace_all(p, "input\\$se", as.character(input$se))
       p <- str_replace_all(p, "input\\$smooth", as.character(input$smooth))
+      p <- str_replace_all(p, "input\\$axisx", as.character(input$axisx))
+      p <- str_replace_all(p, "input\\$axisy", as.character(input$axisy))
       
       p
       

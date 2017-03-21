@@ -42,6 +42,15 @@ exploration_distributions <- function(dataInput) {
                        sliderInput(inputId = "bw_adjust",
                                    label = "Bandwidth adjustment:",
                                    min = 0.01, max = 2, value = 1, step = 0.1)
+      ),
+      checkboxInput(inputId = "label_axes",
+                    label = strong("Change labels axes"),
+                    value = FALSE),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("xaxis", "X-axis:", value="label x-axis")
+      ),
+      conditionalPanel(condition = "input.label_axes == true",
+                       textInput("yaxis", "Y-axis:", value="label y-axis")
       )
     ),
     mainPanel(
@@ -91,6 +100,10 @@ exploration_distributions <- function(dataInput) {
         facets <- paste(input$facet_row, '~', input$facet_col)
         if (facets != '. ~ .') p <- paste(p, "+", "facet_grid(", facets, ")")  
         
+        # if labels specified
+        if(input$label_axes) p <- paste(p, "+", "labs(x='input$xaxis', y='input$yaxis')")
+        
+        
         p <- paste(p, "+ theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1))")
         
         # Replace name of variables by values
@@ -99,7 +112,9 @@ exploration_distributions <- function(dataInput) {
         p <- str_replace_all(p, "input\\$binwidth", as.character(input$binwidth))
         p <- str_replace_all(p, "input\\$bw_adjust", as.character(input$bw_adjust))
         p <- str_replace_all(p, "input\\$alpha", as.character(input$alpha))
-  
+        p <- str_replace_all(p, "input\\$xaxis", as.character(input$xaxis))
+        p <- str_replace_all(p, "input\\$yaxis", as.character(input$yaxis))
+    
         p
     })
     
